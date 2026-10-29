@@ -1,0 +1,24 @@
+digraph C4_Contexto {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=20, labelloc=t, label=<<b>C4 - Nivel 1: Diagrama de Contexto do Sistema - Petflix</b>>, pad=0.4, nodesep=0.8, ranksep=1.0];
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontcolor=white, color="#073B6F", fillcolor="#08427B", margin="0.25,0.15", width=2.6];
+  edge [fontname="Helvetica", fontsize=11, color="#555555", fontcolor="#333333"];
+
+  tutor [label=<<b>Tutor de pet</b><br/><font point-size="10">[Pessoa]</font><br/><br/><font point-size="11">Assiste, publica, curte e<br/>favorita videos; segue perfis</font>>, shape=box];
+  esp [label=<<b>Especialista</b><br/><font point-size="10">[Pessoa]</font><br/><br/><font point-size="11">Veterinario/adestrador que<br/>publica videos e responde foruns</font>>];
+  adm [label=<<b>Administrador</b><br/><font point-size="10">[Pessoa]</font><br/><br/><font point-size="11">Modera videos, categorias<br/>e usuarios</font>>];
+
+  petflix [label=<<b>Petflix</b><br/><font point-size="10">[Sistema de Software]</font><br/><br/><font point-size="11">Plataforma de conteudos em video sobre pets:<br/>feeds, upload, perfis, foruns e administracao.<br/>Modulos internos se comunicam por eventos<br/>atraves da nova camada de mensageria.</font>>, fillcolor="#1168BD", color="#0B4884", width=4.5];
+
+  email [label=<<b>Servico de E-mail</b><br/><font point-size="10">[Sistema Externo]</font><br/><br/><font point-size="11">SMTP / SendGrid - envia avisos<br/>de novo video e respostas no forum</font>>, fillcolor="#999999", color="#8A8A8A"];
+  mod [label=<<b>API de Moderacao de Conteudo</b><br/><font point-size="10">[Sistema Externo - opcional]</font><br/><br/><font point-size="11">Analisa thumbnails/videos para<br/>detectar conteudo improprio</font>>, fillcolor="#999999", color="#8A8A8A"];
+
+  {rank=same; tutor; esp; adm;}
+  {rank=same; email; mod;}
+
+  tutor -> petflix [label="  Assiste e publica videos\n  [HTTPS]"];
+  esp -> petflix [label="  Publica videos e responde\n  topicos [HTTPS]"];
+  adm -> petflix [label="  Modera conteudo\n  [HTTPS]"];
+  petflix -> email [label="  Envia notificacoes\n  (assincrono, via worker) [SMTP/HTTPS]"];
+  petflix -> mod [label="  Solicita analise de midia\n  (assincrono) [HTTPS]"];
+  email -> tutor [label="  Entrega e-mails", style=dashed];
+}

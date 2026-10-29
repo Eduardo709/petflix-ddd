@@ -1,0 +1,54 @@
+digraph C4_Componentes {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=20, labelloc=t, label=<<b>C4 - Nivel 3: Diagrama de Componentes - Camada de Comunicacao (mensageria)</b>>, pad=0.4, nodesep=0.35, ranksep=1.1, splines=spline, compound=true];
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontcolor=white, color="#3C7FC0", fillcolor="#85BBF0", margin="0.18,0.10", width=2.4, fontcolor="#0B2A4A"];
+  edge [fontname="Helvetica", fontsize=9.5, color="#555555", fontcolor="#333333"];
+
+  subgraph cluster_api {
+    label=<<b>API REST - Monolito Modular</b> [Conteiner]>; style="dashed,rounded"; color="#444444"; fontname="Helvetica"; margin=16;
+    controllers [label=<<b>Controllers HTTP</b><br/><font point-size="9">[interfaces/http]</font><br/><font point-size="10">VideoController, PerfilController...</font>>];
+    casos [label=<<b>Casos de Uso</b><br/><font point-size="9">[application/use-cases]</font><br/><font point-size="10">EnviarVideo, SeguirUsuario,<br/>ObterDetalheDoVideo...</font>>];
+    porta [label=<<b>PublicadorDeEventosPort</b><br/><font point-size="9">[porta - shared-kernel]</font><br/><font point-size="10">publicar(evento)</font>>, fillcolor="#FFFFFF", color="#3C7FC0", style="rounded,filled,dashed"];
+    outrepo [label=<<b>OutboxPublicador</b><br/><font point-size="9">[adaptador - infra/messaging]</font><br/><font point-size="10">INSERT em outbox na<br/>transacao do agregado</font>>, fillcolor="#F5C18A", color="#A35F1A"];
+    relay [label=<<b>OutboxRelay</b><br/><font point-size="9">[componente agendado]</font><br/><font point-size="10">SELECT outbox pendente a cada 1s,<br/>publica e marca como enviado</font>>, fillcolor="#F5C18A", color="#A35F1A"];
+    rpub [label=<<b>RabbitMqPublicador</b><br/><font point-size="9">[adaptador - amqplib]</font><br/><font point-size="10">routing key = evento.nome,<br/>persistent + publisher confirms</font>>, fillcolor="#F5C18A", color="#A35F1A"];
+    isub [label=<<b>Assinantes internos</b><br/><font point-size="9">[contexts/*/infrastructure/messaging]</font><br/><font point-size="10">ex.: ContadoresConsumer<br/>(Engajamento &lt;- Catalogo)</font>>, fillcolor="#F5C18A", color="#A35F1A"];
+  }
+
+  subgraph cluster_broker {
+    label=<<b>RabbitMQ</b> [Conteiner]>; style="dashed,rounded"; color="#A35F1A"; fontname="Helvetica"; margin=16;
+    node [fillcolor="#D9822B", color="#A35F1A", fontcolor=white];
+    ex [label=<<b>Exchange petflix.events</b><br/><font point-size="9">[topic, durable]</font>>];
+    q1 [label=<<b>midia.processamento.q</b><br/><font point-size="9">catalogo.VideoEnviado</font>>];
+    q2 [label=<<b>engajamento.q</b><br/><font point-size="9">catalogo.VideoPublicado<br/>engajamento.VideoAssistido</font>>];
+    q3 [label=<<b>notificacoes.q</b><br/><font point-size="9">catalogo.VideoPublicado<br/>forum.RespostaPublicada</font>>];
+    q4 [label=<<b>busca.indexacao.q</b><br/><font point-size="9">catalogo.*  comunidade.*</font>>];
+    dlx [label=<<b>petflix.dlx + *.dlq</b><br/><font point-size="9">mensagens com falha<br/>apos 3 tentativas</font>>, fillcolor="#B03A2E", color="#7B241C"];
+  }
+
+  subgraph cluster_worker {
+    label=<<b>Worker de Eventos</b> [Conteiner]>; style="dashed,rounded"; color="#444444"; fontname="Helvetica"; margin=16;
+    c1 [label=<<b>MidiaProcessorConsumer</b><br/><font point-size="10">valida/transcodifica, gera<br/>duracao; publica VideoPublicado<br/>(via RabbitMqPublicador)</font>>];
+    c2 [label=<<b>ContadoresConsumer</b><br/><font point-size="10">viewsCount, videosCount,<br/>followersCount, historico</font>>];
+    c3 [label=<<b>NotificacaoConsumer</b><br/><font point-size="10">avisa seguidores por e-mail</font>>];
+    c4 [label=<<b>IndexadorConsumer</b><br/><font point-size="10">atualiza indice de busca</font>>];
+    idem [label=<<b>GuardaDeIdempotencia</b><br/><font point-size="10">tabela processed_events<br/>(evento.id unico)</font>>, fillcolor="#FFFFFF", style="rounded,filled,dashed"];
+  }
+
+  db [label=<<b>MySQL</b><br/><font point-size="9">outbox, processed_events,<br/>tabelas de dominio</font>>, shape=cylinder, fillcolor="#438DD5", color="#0B4884", fontcolor=white];
+  email [label=<<b>Servico de E-mail</b><br/><font point-size="9">[externo]</font>>, fillcolor="#999999", color="#8A8A8A", fontcolor=white];
+
+  controllers -> casos [label="comando"];
+  casos -> porta [label="publicar(evento)"];
+  porta -> outrepo [label="implementado por", style=dashed, arrowhead=empty];
+  outrepo -> db [label="INSERT outbox\n(mesma transacao)"];
+  relay -> rpub;
+  rpub -> ex [label="AMQP publish", color="#A35F1A", penwidth=1.8];
+  ex -> q1; ex -> q2; ex -> q3; ex -> q4;
+  q1 -> dlx [style=dotted, color="#B03A2E"]; q2 -> dlx [style=dotted, color="#B03A2E"];
+  q3 -> dlx [style=dotted, color="#B03A2E"]; q4 -> dlx [style=dotted, color="#B03A2E"];
+  q2 -> isub [label="modulo -> modulo", style=dashed, color="#A35F1A", constraint=false];
+  q1 -> c1 [color="#A35F1A"]; q2 -> c2 [color="#A35F1A"]; q3 -> c3 [color="#A35F1A"]; q4 -> c4 [color="#A35F1A"];
+  c1 -> idem [style=dashed]; c2 -> idem [style=dashed]; c3 -> idem [style=dashed]; c4 -> idem [style=dashed];
+  idem -> db;
+  c3 -> email [label="SMTP"];
+}

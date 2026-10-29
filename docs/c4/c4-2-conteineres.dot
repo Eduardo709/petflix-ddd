@@ -1,0 +1,32 @@
+digraph C4_Conteineres {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=20, labelloc=t, label=<<b>C4 - Nivel 2: Diagrama de Conteineres - Petflix com camada de mensageria</b>>, pad=0.4, nodesep=0.6, ranksep=0.9, compound=true];
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontcolor=white, color="#0B4884", fillcolor="#438DD5", margin="0.22,0.12", width=2.6];
+  edge [fontname="Helvetica", fontsize=10, color="#555555", fontcolor="#333333"];
+
+  users [label=<<b>Tutor / Especialista / Admin</b><br/><font point-size="10">[Pessoas]</font>>, fillcolor="#08427B", color="#073B6F"];
+
+  subgraph cluster_petflix {
+    label=<<b>Petflix</b>  [Sistema de Software]>; style="dashed,rounded"; color="#444444"; fontname="Helvetica"; fontsize=14; margin=24;
+
+    spa [label=<<b>Aplicacao Web (SPA)</b><br/><font point-size="10">[Conteiner: Vue 3 + Vite + Pinia + Axios]</font><br/><br/><font point-size="11">Telas de feed, upload, detalhe,<br/>perfil, foruns e admin</font>>];
+    api [label=<<b>API REST - Monolito Modular</b><br/><font point-size="10">[Conteiner: Node.js + Express + Sequelize]</font><br/><br/><font point-size="11">Contextos DDD (Identidade, Comunidade,<br/>Catalogo, Engajamento, Foruns, Busca,<br/>Moderacao). Grava eventos no Outbox.</font>>, width=3.6];
+    broker [label=<<b>Message Broker  [NOVO]</b><br/><font point-size="10">[Conteiner: RabbitMQ 3.13 - AMQP 0-9-1]</font><br/><br/><font point-size="11">Exchange topic <i>petflix.events</i>,<br/>filas por contexto + DLQ</font>>, fillcolor="#D9822B", color="#A35F1A", width=3.2];
+    worker [label=<<b>Worker de Eventos  [NOVO]</b><br/><font point-size="10">[Conteiner: Node.js + amqplib]</font><br/><br/><font point-size="11">Processa midia, atualiza contadores,<br/>indexa busca, envia notificacoes</font>>, fillcolor="#D9822B", color="#A35F1A", width=3.2];
+    db [label=<<b>Banco de Dados</b><br/><font point-size="10">[Conteiner: MySQL 8 - petflix_db]</font><br/><br/><font point-size="11">users, videos, follows, views,<br/>favorites, <b>outbox</b>, <b>processed_events</b></font>>, shape=cylinder, style=filled, width=2.8];
+    files [label=<<b>Armazenamento de Midia</b><br/><font point-size="10">[Conteiner: Sistema de arquivos /public/uploads]</font><br/><br/><font point-size="11">videos, thumbnails e fotos de perfil</font>>, shape=folder, style=filled, width=2.8];
+  }
+
+  email [label=<<b>Servico de E-mail</b><br/><font point-size="10">[Sistema Externo]</font>>, fillcolor="#999999", color="#8A8A8A"];
+
+  users -> spa [label="  Usa [HTTPS]"];
+  spa -> api [label="  Chamadas JSON / multipart\n  [HTTPS + JWT]"];
+  spa -> files [label="  Carrega <video>/<img>\n  [HTTP estatico + Range]", style=dashed];
+  api -> db [label="  Le/grava agregado + evento\n  na MESMA transacao [SQL]"];
+  api -> files [label="  Grava upload [fs]"];
+  api -> broker [label="  Publica eventos (OutboxRelay)\n  [AMQP, confirm mode]", color="#A35F1A", fontcolor="#A35F1A", penwidth=2];
+  broker -> worker [label="  Entrega mensagens\n  [AMQP, ack manual]", color="#A35F1A", fontcolor="#A35F1A", penwidth=2];
+  broker -> api [label="  Consumidores internos\n  (modulo <-> modulo) [AMQP]", color="#A35F1A", fontcolor="#A35F1A", style=dashed];
+  worker -> db [label="  Atualiza contadores/historico,\n  idempotencia [SQL]"];
+  worker -> files [label="  Le/gera derivados de midia [fs]"];
+  worker -> email [label="  Envia notificacoes [SMTP]"];
+}

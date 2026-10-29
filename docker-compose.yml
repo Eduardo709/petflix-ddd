@@ -1,0 +1,18 @@
+# Infraestrutura local prevista para a arquitetura alvo
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: petflix_db
+      MYSQL_ROOT_PASSWORD: root
+    ports: ["3306:3306"]
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports: ["5672:5672", "15672:15672"]
+  api:
+    build: ./apps/api
+    depends_on: [mysql, rabbitmq]
+    ports: ["3000:3000"]
+  worker:
+    build: ./apps/worker
+    depends_on: [mysql, rabbitmq]
